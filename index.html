@@ -1,0 +1,1018 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bookmark Builder</title>
+  <style>
+    :root { 
+      --bg:#0b0f14; 
+      --panel:#111720; 
+      --muted:#7b8a9a; 
+      --text:#e7edf5; 
+      --accent:#27c1a3; 
+      --line:#1b2430; 
+      --warn:#f59e0b; 
+      --danger:#ef4444;
+      --hover:#1a2332;
+      --selected:#0a1b22;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial; background: var(--bg); color: var(--text); }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: linear-gradient(180deg, var(--panel), rgba(17,23,32,.98)); backdrop-filter: saturate(120%) blur(6px); z-index: 5; }
+    h1 { font-size: 18px; margin: 0; font-weight: 650; }
+    .tag { font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: .25em .6em; }
+    .stats-bar { display: flex; gap: 16px; align-items: center; margin-left: auto; margin-right: 16px; }
+    .stat-item { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--hover); border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+    .stat-value { color: var(--accent); font-weight: 600; }
+    .wrap { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px; max-width: 1400px; margin: 0 auto; }
+    @media (max-width: 768px) { .wrap { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+    .panel > .hd { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent); }
+    .panel > .hd h2 { margin: 0; font-size: 14px; letter-spacing: .25px; font-weight: 600; }
+    .panel > .bd { padding: 14px; }
+    .muted { color: var(--muted); }
+    .row { display: flex; gap: 10px; align-items: center; }
+    .row.wrap { flex-wrap: wrap; }
+    input[type="text"], input[type="url"], textarea, select {
+      width: 100%; background: #0f1520; border: 1px solid #1c2534; color: var(--text);
+      padding: 10px 12px; border-radius: 10px; outline: none; transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus { border-color: #2a3a50; }
+    textarea { min-height: 84px; resize: vertical; font-family: inherit; }
+    label { display: block; margin: 10px 0 6px; color: var(--muted); font-size: 13px; font-weight: 500; }
+    .btn { appearance: none; background: #172130; border: 1px solid #243247; color: var(--text);
+      padding: 10px 12px; border-radius: 10px; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+    .btn:hover { border-color: #2f425c; background: #1a2638; }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary { background: linear-gradient(180deg, #1a3440, #0f2a33); border-color: #194652; color: #dbfff7; }
+    .btn.accent { background: linear-gradient(180deg, #19a98d, #178d76); border-color: #0e816b; color: #052018; }
+    .btn.warn { background: linear-gradient(180deg, #f59e0b, #d97706); border-color: #b45309; color: #1a1205; }
+    .btn.ghost { background: transparent; border-color: transparent; }
+    .btn.ghost:hover { background: var(--hover); border-color: var(--line); }
+    .btn.small { padding: 6px 10px; border-radius: 8px; font-size: 12px; }
+    .btn.tiny { padding: 4px 8px; border-radius: 6px; font-size: 11px; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .tree { max-height: 70vh; overflow: auto; padding: 8px; }
+    .tree ul { list-style: none; padding-left: 16px; margin: 0; }
+    .tree > ul { padding-left: 0; }
+    .tree li { position: relative; margin: 2px 0; padding-left: 18px; }
+    .tree li .twist { position: absolute; left: 0; top: 2px; width: 14px; height: 14px; border: 1px solid #28374c; border-radius: 4px; display: inline-grid; place-items: center; font-size: 11px; color: #8ca3bb; cursor: pointer; transition: transform 0.2s, background 0.2s; }
+    .tree li .twist:hover { background: var(--hover); }
+    .tree li.closed .twist { transform: rotate(0deg); }
+    .tree li:not(.closed) > .twist { transform: rotate(90deg); }
+    .tree li.closed > ul { display: none; }
+    .tree li .node { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; transition: background 0.2s; position: relative; }
+    .tree li .node:hover { background: var(--hover); }
+    .tree li .node.active { background: var(--selected); outline: 1px solid #1b3a4a; }
+    .tree li .node .actions { position: absolute; right: 8px; display: none; gap: 4px; }
+    .tree li .node:hover .actions, .tree li .node.active .actions { display: flex; }
+    .tree li .node .count { margin-left: auto; padding-right: 4px; }
+    .t-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    .chip { display: inline-flex; gap: 6px; align-items: center; background: #0d1622; border: 1px solid #1b2b3d; padding: 6px 10px; border-radius: 999px; color: #9fb3c7; font-size: 12px; }
+    code.inline { background: #0e1622; border: 1px solid #1a2a3d; padding: .1em .4em; border-radius: 6px; color: #9fd; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .footer { padding: 10px 16px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
+    .danger { color: var(--danger); }
+    .empty { padding: 18px; border: 1px dashed #273246; border-radius: 12px; color: #86a2bd; background: #0a121c; text-align: center; }
+    .count { color: #8fb7c7; font-weight: 600; }
+    .pill { border: 1px solid #2b3a50; border-radius: 999px; padding: .15rem .5rem; font-size: 12px; color: #9fb3c7; }
+    .item-row { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #0f1520; transition: background 0.2s; }
+    .item-row:hover { background: var(--hover); }
+    .item-row .item-info { flex: 1; min-width: 0; }
+    .item-row .item-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-row .item-url { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-row .item-actions { display: flex; gap: 4px; }
+    .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #0d1622; border: 1px solid #1b2b3d; padding: 10px 14px; border-radius: 10px; color: #bfe3ff; box-shadow: 0 6px 30px rgba(0,0,0,.35); z-index: 50; animation: slideUp 0.3s ease-out; }
+    @keyframes slideUp { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.7); z-index: 100; }
+    .modal.active { display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; width: 90%; max-width: 400px; }
+    .modal-header { margin-bottom: 16px; }
+    .modal-header h3 { margin: 0; font-size: 16px; }
+    .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📚 Bookmark Builder</h1>
+    <span class="tag">v2.0</span>
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span>📁</span>
+        <span>Folders: <span class="stat-value" id="folderCount">0</span></span>
+      </div>
+      <div class="stat-item">
+        <span>🔖</span>
+        <span>Bookmarks: <span class="stat-value" id="bookmarkCount">0</span></span>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button class="btn small" id="btnExpand">Expand all</button>
+      <button class="btn small" id="btnCollapse">Collapse all</button>
+      <button class="btn small" id="btnReset" title="Clear everything">Reset</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <section class="panel">
+      <div class="hd">
+        <h2>Folders</h2>
+        <div class="toolbar">
+          <button class="btn small" id="btnNewRoot">New root</button>
+          <button class="btn small" id="btnImport">Import HTML</button>
+          <input type="file" id="fileInput" accept="text/html,.html,.htm" style="display:none" />
+          <button class="btn small accent" id="btnExport">Export HTML</button>
+        </div>
+      </div>
+      <div class="bd tree" id="tree"></div>
+      <div class="footer">💡 Select a folder to add subfolders/bookmarks or reorder items</div>
+    </section>
+
+    <section class="panel">
+      <div class="hd">
+        <h2>Editor</h2>
+        <div class="toolbar">
+          <button class="btn small" id="btnSave">Save</button>
+          <button class="btn small" id="btnLoad">Load</button>
+          <button class="btn small danger" id="btnDeleteFolder">Delete folder</button>
+        </div>
+      </div>
+      <div class="bd">
+        <div id="selectedInfo" class="chip">No folder selected</div>
+        <div class="row muted" style="margin-top:6px">
+          <span id="iconQueueStat" class="pill" title="Favicon downloads running">Icons: 0 pending</span>
+        </div>
+
+        <div style="height:16px"></div>
+
+        <div class="grid">
+          <div>
+            <h3 style="margin:0 0 6px">Add subfolder</h3>
+            <label>Name</label>
+            <input type="text" id="folderName" placeholder="e.g. Resources"/>
+            <div style="height:8px"></div>
+            <button class="btn primary" id="btnAddFolder">Add folder</button>
+          </div>
+          <div>
+            <h3 style="margin:0 0 6px">Add bookmark</h3>
+            <label>URL</label>
+            <input type="url" id="bmUrl" placeholder="https://example.com"/>
+            <label>Title (optional)</label>
+            <input type="text" id="bmTitle" placeholder="If blank, host will be used"/>
+            <div class="row" style="margin-top:8px">
+              <label class="row" style="gap:8px;margin:0">
+                <input type="checkbox" id="bmFetchIcon" checked/> 
+                <span>Fetch icon</span>
+              </label>
+              <div class="muted" id="bmIconStatus"></div>
+            </div>
+            <div style="height:8px"></div>
+            <button class="btn accent" id="btnAddBookmark">Add bookmark</button>
+          </div>
+        </div>
+
+        <div style="height:20px"></div>
+        <h3 style="margin:0 0 6px">Bulk add (one per line)</h3>
+        <p class="muted" style="margin:0 0 8px">Format: <code class="inline">https://example.com, Optional Title</code></p>
+        <textarea id="bulkInput" placeholder="https://example.com&#10;https://test.com, Test Site&#10;https://another-example.com"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="btnBulkAdd">Add all</button>
+          <span class="muted" id="bulkResult"></span>
+        </div>
+
+        <div style="height:20px"></div>
+        <h3 style="margin:0 0 10px">Selected folder contents</h3>
+        <div id="folderSummary" class="empty">No folder selected</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Edit Item</h3>
+      </div>
+      <div id="modalBody"></div>
+      <div class="modal-footer">
+        <button class="btn" id="modalCancel">Cancel</button>
+        <button class="btn primary" id="modalSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const nowSec = () => Math.floor(Date.now()/1000);
+  let state = {
+    roots: [makeRoot('Bookmarks bar', true)],
+    selected: null,
+    expanded: {}
+  };
+
+  function makeRoot(title, toolbar=false){
+    return { id: uid(), type:'folder', title, addDate: nowSec(), lastModified: nowSec(), personalToolbarFolder: !!toolbar, children: [] };
+  }
+  function makeFolder(title){
+    return { id: uid(), type:'folder', title, addDate: nowSec(), lastModified: nowSec(), children: [] };
+  }
+  function makeBookmark(url, title, iconData=null, iconURI=null){
+    return { id: uid(), type:'bookmark', title, href:url, addDate: nowSec(), iconData, iconURI };
+  }
+  function uid(){ return 'x'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); }
+
+  function updateStats() {
+    let folders = 0, bookmarks = 0;
+    function countItems(items) {
+      for (const item of items) {
+        if (item.type === 'folder') {
+          folders++;
+          countItems(item.children || []);
+        } else if (item.type === 'bookmark') {
+          bookmarks++;
+        }
+      }
+    }
+    countItems(state.roots);
+    document.getElementById('folderCount').textContent = folders;
+    document.getElementById('bookmarkCount').textContent = bookmarks;
+  }
+
+  const treeEl = document.getElementById('tree');
+  function renderTree(){
+    if(!state.roots.length){ 
+      treeEl.innerHTML = '<div class="empty">No roots. Click <b>New root</b> to create one.</div>'; 
+      updateStats();
+      return; 
+    }
+    const html = state.roots.map((root,ri)=> renderFolderNode(root,[ri])).join('');
+    treeEl.innerHTML = '<ul>'+html+'</ul>';
+    
+    treeEl.querySelectorAll('[data-act]')?.forEach(el=>{
+      el.addEventListener('click', (e)=>{
+        e.stopPropagation(); 
+        const act = el.dataset.act; 
+        const path = el.dataset.path ? el.dataset.path.split(',').map(n=>+n) : null;
+
+        if(act==='toggle'){ 
+          const li = el.closest('li');
+          const id = li?.dataset.id || el.dataset.id;
+          if(!id) return;
+          li.classList.toggle('closed'); 
+          const open = !li.classList.contains('closed');
+          state.expanded[id] = open;
+          persist();
+        }
+        if(act==='select'){ 
+          selectFolder(path); 
+        }
+        if(act==='moveUp' || act==='moveDown'){
+          moveItem(path, act==='moveUp');
+        }
+        if(act==='editFolder'){
+          editFolder(path);
+        }
+      });
+    });
+    updateStats();
+  }
+
+  function renderFolderNode(folder, path){
+    const isSelected = state.selected && pathEquals(state.selected.path, path) && state.selected.rootIndex === path[0];
+    const bmCount = folder.children.filter(ch=>ch.type==='bookmark').length;
+    const folderCount = folder.children.filter(ch=>ch.type==='folder').length;
+    const pathAttr = path.join(',');
+    const liClass = state.expanded[folder.id] ? '' : 'closed';
+    
+    const parent = getParentByPath(path[0], path);
+    const canMoveUp = parent && path[path.length-1] > 0;
+    const canMoveDown = parent && path[path.length-1] < parent.children.length - 1;
+    
+    const childHtml = folder.children.map((ch,i)=>{
+      if(ch.type==='folder') return renderFolderNode(ch, path.concat(i));
+      return `<li><span class="twist" style="visibility:hidden">·</span><div class="node"><span>🔖</span><span class="t-label">${esc(ch.title||ch.href)}</span></div></li>`;
+    }).join('');
+    
+    return `<li class="${liClass}" data-id="${folder.id}">
+      <span class="twist" data-act="toggle" data-id="${folder.id}" data-path="${pathAttr}" title="Expand/collapse">▸</span>
+      <div class="node ${isSelected?'active':''}" data-act="select" data-path="${pathAttr}">
+        <span>📁</span>
+        <span class="t-label">${esc(folder.title)}</span>
+        <span class="count muted">${bmCount} ${bmCount===1?'link':'links'}${folderCount>0 ? ', '+folderCount+' folder'+(folderCount===1?'':'s') : ''}</span>
+        <div class="actions">
+          <button class="btn tiny ghost" data-act="editFolder" data-path="${pathAttr}" title="Edit">✏️</button>
+          ${canMoveUp ? `<button class="btn tiny ghost" data-act="moveUp" data-path="${pathAttr}" title="Move up">↑</button>` : ''}
+          ${canMoveDown ? `<button class="btn tiny ghost" data-act="moveDown" data-path="${pathAttr}" title="Move down">↓</button>` : ''}
+        </div>
+      </div>
+      <ul>${childHtml}</ul>
+    </li>`;
+  }
+
+  function pathEquals(a,b){ 
+    if(!a||!b||a.length!==b.length) return false; 
+    for(let i=0;i<a.length;i++){ if(a[i]!==b[i]) return false; } 
+    return true; 
+  }
+
+  function getFolderByPath(rootIndex, path){
+    let node = state.roots[rootIndex];
+    for(let i=1;i<path.length;i++){ node = node.children[path[i]]; }
+    return node;
+  }
+  function getParentByPath(rootIndex, path){
+    if(path.length===1) return null;
+    let parent = state.roots[rootIndex];
+    for(let i=1;i<path.length-1;i++){ parent = parent.children[path[i]]; }
+    return parent;
+  }
+
+  function selectFolder(path){
+    state.selected = {rootIndex: path[0], path};
+    expandPath(path);
+    updateSelectedInfo();
+    renderTree();
+    updateFolderSummary();
+    persist();
+  }
+
+  function expandPath(path){
+    let node = state.roots[path[0]];
+    state.expanded[node.id] = true;
+    for(let i=1;i<path.length;i++){
+      node = node.children[path[i]];
+      if(node && node.type==='folder') state.expanded[node.id] = true;
+    }
+  }
+
+  function updateSelectedInfo(){
+    const el = document.getElementById('selectedInfo');
+    if(!state.selected){ el.innerHTML = 'No folder selected'; return; }
+    const folder = getFolderByPath(state.selected.rootIndex, state.selected.path);
+    const crumbs = getCrumbs(state.selected.rootIndex, state.selected.path).map(esc).join(' › ');
+    el.innerHTML = `📁 <b>${esc(folder.title)}</b> ${crumbs ? '<span class="muted">in</span> '+crumbs : ''}`;
+  }
+  function getCrumbs(rootIndex, path){
+    const names=[]; 
+    let node=state.roots[rootIndex];
+    for(let i=1;i<path.length;i++){
+      node = node.children[path[i]];
+      if(node && node.type==='folder') names.push(node.title);
+    }
+    return names.slice(0,-1);
+  }
+
+  function moveItem(path, moveUp){
+    const rootIndex = path[0];
+    const parent = getParentByPath(rootIndex, path);
+    if(!parent) return;
+    const index = path[path.length-1];
+    const newIndex = moveUp ? index - 1 : index + 1;
+    if(newIndex < 0 || newIndex >= parent.children.length) return;
+    [parent.children[index], parent.children[newIndex]] = [parent.children[newIndex], parent.children[index]];
+    parent.lastModified = nowSec();
+    const newPath = path.slice(0, -1).concat(newIndex);
+    state.selected = {rootIndex, path: newPath};
+    expandPath(newPath);
+    renderTree();
+    updateFolderSummary();
+    persist();
+  }
+  function moveItemInFolder(index, moveUp){
+    if(!state.selected) return;
+    const folder = getFolderByPath(state.selected.rootIndex, state.selected.path);
+    const newIndex = moveUp ? index - 1 : index + 1;
+    if(newIndex < 0 || newIndex >= folder.children.length) return;
+    [folder.children[index], folder.children[newIndex]] = [folder.children[newIndex], folder.children[index]];
+    folder.lastModified = nowSec();
+    updateFolderSummary();
+    renderTree();
+    persist();
+  }
+
+  function editFolder(path){
+    const folder = getFolderByPath(path[0], path);
+    showEditModal('folder', folder, ()=>{
+      folder.lastModified = nowSec();
+      renderTree();
+      updateSelectedInfo();
+      persist();
+    });
+  }
+
+  function editBookmark(folderPath, bookmarkIndex){
+    const folder = getFolderByPath(folderPath.rootIndex, folderPath.path);
+    const bookmark = folder.children[bookmarkIndex];
+    showEditModal('bookmark', bookmark, ()=>{
+      folder.lastModified = nowSec();
+      updateFolderSummary();
+      persist();
+    });
+  }
+
+  function showEditModal(type, item, onSave){
+    const modal = document.getElementById('editModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const modalSave = document.getElementById('modalSave');
+    const modalCancel = document.getElementById('modalCancel');
+    
+    if(type === 'folder'){
+      modalTitle.textContent = 'Edit Folder';
+      modalBody.innerHTML = `
+        <label>Folder Name</label>
+        <input type="text" id="editName" value="${esc(item.title)}"/>
+      `;
+    } else {
+      modalTitle.textContent = 'Edit Bookmark';
+      modalBody.innerHTML = `
+        <label>Title</label>
+        <input type="text" id="editTitle" value="${esc(item.title)}"/>
+        <label>URL</label>
+        <input type="url" id="editUrl" value="${esc(item.href)}"/>
+      `;
+    }
+    
+    modal.classList.add('active');
+    
+    const saveHandler = () => {
+      if(type === 'folder'){
+        const newName = document.getElementById('editName').value.trim();
+        if(newName) item.title = newName;
+      } else {
+        const newTitle = document.getElementById('editTitle').value.trim();
+        const newUrl = document.getElementById('editUrl').value.trim();
+        if(newTitle) item.title = newTitle;
+        if(newUrl) item.href = newUrl;
+      }
+      modal.classList.remove('active');
+      onSave();
+    };
+    
+    const cancelHandler = () => {
+      modal.classList.remove('active');
+    };
+    
+    modalSave.onclick = saveHandler;
+    modalCancel.onclick = cancelHandler;
+  }
+
+  document.getElementById('btnAddFolder').addEventListener('click', ()=>{
+    const name = document.getElementById('folderName').value.trim();
+    if(!state.selected) return alert('Select a folder on the left first.');
+    if(!name) return alert('Folder name required.');
+    const folder = getFolderByPath(state.selected.rootIndex, state.selected.path);
+    const sub = makeFolder(name);
+    folder.children.push(sub);
+    folder.lastModified = nowSec();
+    state.expanded[folder.id] = true;
+    document.getElementById('folderName').value = '';
+    renderTree();
+    updateFolderSummary();
+    persist();
+  });
+
+  document.getElementById('btnAddBookmark').addEventListener('click', ()=>{
+    const url = document.getElementById('bmUrl').value.trim();
+    let title = document.getElementById('bmTitle').value.trim();
+    const fetchIcon = document.getElementById('bmFetchIcon').checked;
+    const status = document.getElementById('bmIconStatus');
+    status.textContent = '';
+    
+    if(!state.selected) return alert('Select a folder on the left first.');
+    if(!isHttpUrl(url)) return alert('Please enter a valid http(s) URL.');
+    if(!title) { try { title = new URL(url).hostname; } catch { title = url; } }
+
+    const folder = getFolderByPath(state.selected.rootIndex, state.selected.path);
+    if(folder.children.some(ch=> ch.type==='bookmark' && ch.href===url)){
+      if(!confirm('This folder already has that URL. Add anyway?')) return;
+    }
+    const bm = makeBookmark(url, title, null, null);
+    folder.children.push(bm);
+    folder.lastModified = nowSec();
+    state.expanded[folder.id] = true;
+    document.getElementById('bmUrl').value='';
+    document.getElementById('bmTitle').value='';
+    renderTree();
+    updateFolderSummary();
+    persist();
+
+    if(fetchIcon){ status.textContent = 'Icon queued…'; queueIconFetch(bm.id, url); }
+  });
+
+  document.getElementById('btnBulkAdd').addEventListener('click', ()=>{
+    if(!state.selected) return alert('Select a folder first.');
+    const text = document.getElementById('bulkInput').value.trim();
+    if(!text) return;
+    const lines = text.split('\n').map(s=>s.trim()).filter(Boolean);
+    const fetchIcons = document.getElementById('bmFetchIcon').checked;
+    let ok=0, fail=0; 
+    const idsToQueue=[]; const urlsToQueue=[];
+    
+    const folder = getFolderByPath(state.selected.rootIndex, state.selected.path);
+    for(const line of lines){
+      let url='', title='';
+      const parts = line.split(',');
+      if(parts.length>1){
+        const a = parts[0].trim(); const b = parts.slice(1).join(',').trim();
+        if(isHttpUrl(a)){ url=a; title=b; } else if(isHttpUrl(b)){ url=b; title=a; } else { url=a; title=b; }
+      } else { url=line.trim(); }
+      if(!isHttpUrl(url)){ fail++; continue; }
+      if(!title){ try{ title = new URL(url).hostname; }catch{ title=url; } }
+      const bm = makeBookmark(url, title, null, null);
+      folder.children.push(bm); 
+      ok++;
+      if(fetchIcons){ idsToQueue.push(bm.id); urlsToQueue.push(url); }
+    }
+    folder.lastModified = nowSec();
+    state.expanded[folder.id] = true;
+    
+    document.getElementById('bulkResult').textContent = `Added ${ok}${fail > 0 ? ', skipped '+fail : ''}`;
+    document.getElementById('bulkInput').value = '';
+    updateFolderSummary(); 
+    renderTree(); 
+    persist();
+    for(let i=0;i<idsToQueue.length;i++){ queueIconFetch(idsToQueue[i], urlsToQueue[i]); }
+  });
+
+  document.getElementById('btnDeleteFolder').addEventListener('click', ()=>{
+    if(!state.selected) return alert('Select a folder to delete.');
+    const {rootIndex, path} = state.selected;
+    if(path.length===1){
+      if(state.roots.length===1) return alert('Cannot delete the last root.');
+      if(!confirm('Delete this root folder and everything inside it?')) return;
+      delete state.expanded[state.roots[rootIndex].id];
+      state.roots.splice(rootIndex,1);
+      state.selected = null;
+    } else {
+      const parent = getParentByPath(rootIndex, path);
+      const idx = path[path.length-1];
+      if(!confirm('Delete this folder and everything inside it?')) return;
+      const removed = parent.children.splice(idx,1)[0];
+      if(removed && removed.type==='folder') clearExpandedUnder(removed);
+      parent.lastModified = nowSec();
+      state.selected = {rootIndex, path:path.slice(0,-1)};
+      expandPath(state.selected.path);
+    }
+    renderTree(); 
+    updateSelectedInfo(); 
+    updateFolderSummary(); 
+    persist();
+  });
+
+  function clearExpandedUnder(folder){
+    delete state.expanded[folder.id];
+    for(const ch of folder.children||[]){
+      if(ch.type==='folder') clearExpandedUnder(ch);
+    }
+  }
+
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-del]');
+    if(!btn) return;
+    const idx = +btn.dataset.index;
+    const type = btn.dataset.type;
+    if(state.selected==null) return;
+    const folder = getFolderByPath(state.selected.rootIndex, state.selected.path);
+    
+    if(type==='bookmark'){
+      if(!confirm('Remove this bookmark?')) return;
+      folder.children.splice(idx,1);
+    } else if(type==='folder'){
+      if(!confirm('Delete this subfolder and everything inside it?')) return;
+      const removed = folder.children.splice(idx,1)[0];
+      if(removed && removed.type==='folder') clearExpandedUnder(removed);
+    }
+    folder.lastModified = nowSec();
+    updateFolderSummary(); 
+    renderTree(); 
+    persist();
+  });
+  
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-edit]');
+    if(!btn) return;
+    const idx = +btn.dataset.index;
+    const type = btn.dataset.type;
+    if(state.selected==null) return;
+    
+    if(type==='bookmark'){
+      editBookmark(state.selected, idx);
+    }
+  });
+  
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-move]');
+    if(!btn) return;
+    const idx = +btn.dataset.index;
+    const direction = btn.dataset.move;
+    moveItemInFolder(idx, direction === 'up');
+  });
+
+  document.getElementById('btnExport').addEventListener('click', ()=>{
+    const html = exportNetscapeHTML();
+    const ts = new Date();
+    const fname = `bookmarks_${ts.getFullYear()}-${pad(ts.getMonth()+1)}-${pad(ts.getDate())}_${pad(ts.getHours())}-${pad(ts.getMinutes())}.html`;
+    downloadFile(fname, html, 'text/html');
+  });
+
+  document.getElementById('btnImport').addEventListener('click', ()=>{
+    const input = document.getElementById('fileInput');
+    input.onchange = async () => {
+      const file = input.files[0]; 
+      if(!file) return;
+      const text = await file.text();
+      
+      if(!text.includes('<!DOCTYPE NETSCAPE-Bookmark-file-1>') && text.includes('<title>Bookmark Builder</title>')) {
+        alert('This appears to be the Bookmark Builder application file, not an exported bookmarks file. Please select a valid bookmarks HTML file.');
+        input.value='';
+        return;
+      }
+      
+      const imported = parseNetscapeHTML(text);
+      if(!imported || !imported.length){ alert('No bookmarks found in file.'); input.value=''; return; }
+      
+      const intoSelected = state.selected && confirm('Import into the currently selected folder? (Cancel = replace all)');
+      if(intoSelected){
+        const folder = getFolderByPath(state.selected.rootIndex, state.selected.path);
+        folder.children.push(...imported);
+        folder.lastModified = nowSec();
+        state.expanded[folder.id] = true;
+      } else {
+        const roots = [];
+        for(const item of imported){ if(item.type==='folder'){ roots.push(item); } }
+        if(!roots.length){ const wrap = makeRoot('Imported'); wrap.children.push(...imported); roots.push(wrap); }
+        state.roots = roots; 
+        state.selected = null;
+        state.expanded = {};
+      }
+      
+      input.value='';
+      setAllExpanded(true);
+      renderTree(); 
+      if(!state.selected && state.roots[0]) { selectFolder([0]); } else { updateFolderSummary(); }
+      persist();
+      const {folders, bookmarks} = countAll(state.roots);
+      toast(`✓ Imported ${folders} folder${folders!==1?'s':''}, ${bookmarks} bookmark${bookmarks!==1?'s':''}`);
+    };
+    input.click();
+  });
+
+  function setAllExpanded(val){
+    function walk(folder){
+      state.expanded[folder.id] = !!val;
+      for(const ch of folder.children){
+        if(ch.type==='folder') walk(ch);
+      }
+    }
+    for(const root of state.roots){ walk(root); }
+  }
+  function expandAll(){ setAllExpanded(true); renderTree(); persist(); }
+  function collapseAll(){ 
+    setAllExpanded(false); 
+    if(state.selected) expandPath(state.selected.path);
+    renderTree(); 
+    persist(); 
+  }
+  document.getElementById('btnExpand').addEventListener('click', expandAll);
+  document.getElementById('btnCollapse').addEventListener('click', collapseAll);
+
+  document.getElementById('btnNewRoot').addEventListener('click', ()=>{
+    const name = prompt('New root folder name', 'Bookmarks bar');
+    if(!name) return;
+    const isToolbar = confirm('Mark this as Personal Toolbar Folder? (OK = yes)');
+    const root = makeRoot(name, isToolbar);
+    state.roots.push(root);
+    state.expanded[root.id] = true;
+    renderTree(); 
+    persist();
+  });
+  
+  document.getElementById('btnReset').addEventListener('click', ()=>{
+    if(confirm('This will clear everything and reset the app. Continue?')){
+      localStorage.removeItem('bookmarkBuilderState');
+      state = { roots:[makeRoot('Bookmarks bar', true)], selected:null, expanded:{} };
+      state.expanded[state.roots[0].id] = true;
+      renderTree(); 
+      updateSelectedInfo(); 
+      updateFolderSummary();
+      toast('✓ Reset complete');
+    }
+  });
+  document.getElementById('btnSave').addEventListener('click', ()=>{ persist(true); });
+  document.getElementById('btnLoad').addEventListener('click', ()=>{ restore(true); });
+
+  function updateFolderSummary(){
+    const box = document.getElementById('folderSummary');
+    if(!state.selected){ box.innerHTML = '<div class="empty">No folder selected</div>'; return; }
+    const folder = getFolderByPath(state.selected.rootIndex, state.selected.path);
+    if(!folder.children.length){ box.innerHTML = '<div class="empty">Empty folder</div>'; return; }
+    const rows = folder.children.map((ch,i)=>{
+      const canMoveUp = i > 0;
+      const canMoveDown = i < folder.children.length - 1;
+      if(ch.type==='folder'){
+        const childCount = ch.children.filter(c=>c.type==='bookmark').length;
+        return `
+          <div class="item-row">
+            <span>📁</span>
+            <div class="item-info">
+              <div class="item-title">${esc(ch.title)}</div>
+              <div class="item-url">${childCount} bookmark${childCount!==1?'s':''}</div>
+            </div>
+            <div class="item-actions">
+              ${canMoveUp ? `<button class="btn tiny ghost" data-move="up" data-index="${i}" title="Move up">↑</button>` : ''}
+              ${canMoveDown ? `<button class="btn tiny ghost" data-move="down" data-index="${i}" title="Move down">↓</button>` : ''}
+              <button class="btn tiny" data-del data-type="folder" data-index="${i}">Delete</button>
+            </div>
+          </div>`;
+      }
+      return `
+        <div class="item-row">
+          <span>🔖</span>
+          <div class="item-info">
+            <div class="item-title">${esc(ch.title||ch.href)}</div>
+            <div class="item-url">${esc(ch.href)}</div>
+          </div>
+          <div class="item-actions">
+            ${canMoveUp ? `<button class="btn tiny ghost" data-move="up" data-index="${i}" title="Move up">↑</button>` : ''}
+            ${canMoveDown ? `<button class="btn tiny ghost" data-move="down" data-index="${i}" title="Move down">↓</button>` : ''}
+            <button class="btn tiny ghost" data-edit data-type="bookmark" data-index="${i}" title="Edit">✏️</button>
+            <button class="btn tiny" data-del data-type="bookmark" data-index="${i}">Remove</button>
+          </div>
+        </div>`;
+    });
+    box.innerHTML = `<div style="display:grid;gap:8px">${rows.join('')}</div>
+      <div class="muted" style="margin-top:12px">
+        Total: <span class="count">${folder.children.length}</span> item${folder.children.length!==1?'s':''}
+      </div>`;
+  }
+
+  function esc(s){ s = (s==null? '': ''+s);
+    return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+            .replaceAll('"','&quot;').replaceAll("'",'&#39;'); }
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function isHttpUrl(s){ try{ const u=new URL(s); return u.protocol==='http:' || u.protocol==='https:'; } catch { return false; } }
+
+  function downloadFile(filename, text, type){
+    const blob = new Blob([text], {type});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); 
+    a.download = filename; 
+    a.rel='noopener';
+    document.body.appendChild(a); 
+    a.click(); 
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 100);
+  }
+
+  const ICON_CONCURRENCY = 6;
+  const iconQueue = [];
+  let iconActive = 0;
+
+  function queueIconFetch(bookmarkId, url){
+    iconQueue.push({bookmarkId, url});
+    updateIconStat();
+    processIconQueue();
+  }
+  function updateIconStat(){
+    const el = document.getElementById('iconQueueStat');
+    if(!el) return; 
+    const pending = iconQueue.length + iconActive;
+    el.textContent = `Icons: ${pending} pending`;
+  }
+  function processIconQueue(){
+    while(iconActive < ICON_CONCURRENCY && iconQueue.length){
+      const job = iconQueue.shift();
+      iconActive++; 
+      updateIconStat();
+      getFaviconData(job.url).then(({iconData, iconURI})=>{
+        const loc = findBookmarkById(job.bookmarkId);
+        if(loc){ 
+          const {folder, index} = loc; 
+          folder.children[index].iconData = iconData; 
+          folder.children[index].iconURI = iconURI; 
+          folder.lastModified = nowSec(); 
+          persist(); 
+          if(state.selected){ updateFolderSummary(); } 
+        }
+      }).catch(()=>{}).finally(()=>{ 
+        iconActive--; 
+        updateIconStat(); 
+        processIconQueue(); 
+      });
+    }
+  }
+  function findBookmarkById(id){
+    for(let r=0;r<state.roots.length;r++){
+      const res = findBookmarkInFolder(state.roots[r]);
+      if(res) return res;
+    }
+    function findBookmarkInFolder(folder){
+      for(let i=0;i<folder.children.length;i++){
+        const ch = folder.children[i];
+        if(ch.type==='bookmark' && ch.id===id){ return {folder, index:i}; }
+        if(ch.type==='folder'){ const inner = findBookmarkInFolder(ch); if(inner) return inner; }
+      }
+      return null;
+    }
+    return null;
+  }
+  async function getFaviconData(url){
+    const host = new URL(url).hostname;
+    const candidates = [
+      `https://icons.duckduckgo.com/ip3/${host}.ico`,
+      `https://www.google.com/s2/favicons?domain=${host}&sz=64`,
+      `https://${host}/favicon.ico`
+    ];
+    for(const iconURL of candidates){
+      try{
+        const res = await fetch(iconURL, {mode:'cors'});
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const blob = await res.blob();
+        const dataURL = await blobToDataURL(blob);
+        if(dataURL && dataURL.startsWith('data:image/')) return {iconData:dataURL, iconURI:iconURL};
+      }catch(e){}
+    }
+    return {iconData:null, iconURI:candidates[0]};
+  }
+  function blobToDataURL(blob){
+    return new Promise((resolve,reject)=>{
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  function exportNetscapeHTML(){
+    const head = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<!-- This is an automatically generated file.
+     It will be read and overwritten.
+     DO NOT EDIT! -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+`;
+    const body = state.roots.map(renderExportFolder).join('');
+    const tail = `</DL><p>`;
+    return head + body + tail;
+  }
+  function renderExportFolder(folder){
+    const attrs = [
+      `ADD_DATE="${folder.addDate}"`,
+      `LAST_MODIFIED="${folder.lastModified||folder.addDate}"`,
+      folder.personalToolbarFolder? 'PERSONAL_TOOLBAR_FOLDER="true"' : ''
+    ].filter(Boolean).join(' ');
+    
+    let html = `    <DT><H3 ${attrs}>${esc(folder.title)}</H3>
+    <DL><p>
+`;
+    for(const ch of folder.children){
+      if(ch.type==='folder'){
+        html += renderExportFolder(ch);
+      } else {
+        const attrsA = [`HREF="${esc(ch.href)}"`,`ADD_DATE="${ch.addDate}"`];
+        if(ch.iconData) attrsA.push(`ICON="${ch.iconData}"`);
+        if(ch.iconURI) attrsA.push(`ICON_URI="${ch.iconURI}"`);
+        html += `        <DT><A ${attrsA.join(' ')}>${esc(ch.title||ch.href)}</A>
+`;
+      }
+    }
+    html += `    </DL><p>
+`;
+    return html;
+  }
+
+  function parseNetscapeHTML(src){
+    let html = String(src||'');
+    html = html.replace(/<!--[\s\S]*?-->/g, '');
+
+    const tokenRe = /<\/?DL\b[^>]*>|<DT\b[^>]*>|<DD\b[^>]*>|<H3\b[^>]*>[\s\S]*?<\/H3>|<A\b[^>]*>[\s\S]*?<\/A>/ig;
+
+    const roots = [];
+    const stack = [{ children: roots }];
+    let current = roots;
+    let lastNode = null;
+
+    let m;
+    while ((m = tokenRe.exec(html)) !== null) {
+      const tok = m[0];
+      const isClose = /^<\//.test(tok);
+      const tagName = (tok.match(/^<\/?(\w+)/) || [,''])[1].toUpperCase();
+
+      if (tagName === 'DT' || tagName === 'DD') {
+        continue;
+      }
+
+      if (tagName === 'DL') {
+        if (isClose) {
+          if (stack.length > 1) stack.pop();
+          current = stack[stack.length - 1].children;
+          lastNode = null;
+        } else {
+          const target = (lastNode && lastNode.type === 'folder') ? lastNode.children : current;
+          stack.push({ children: target });
+          current = target;
+        }
+        continue;
+      }
+
+      if (tagName === 'H3') {
+        const attr = (tok.match(/<H3\b([^>]*)>/i) || [,''])[1];
+        const titleRaw = tok.replace(/^[\s\S]*?>/,'').replace(/<\/H3>$/i,'');
+        const title = decodeEntities(titleRaw.trim());
+        const f = makeFolder(title);
+        const add = parseInt(getAttr(attr, 'ADD_DATE')); if(add) f.addDate = add;
+        const lm  = parseInt(getAttr(attr, 'LAST_MODIFIED')); if(lm) f.lastModified = lm;
+        if (hasBooleanAttr(attr, 'PERSONAL_TOOLBAR_FOLDER')) f.personalToolbarFolder = true;
+        current.push(f);
+        lastNode = f;
+        continue;
+      }
+
+      if (tagName === 'A') {
+        const attr = (tok.match(/<A\b([^>]*)>/i) || [,''])[1];
+        const textRaw = tok.replace(/^[\s\S]*?>/,'').replace(/<\/A>$/i,'');
+        const text = decodeEntities(textRaw.trim());
+        const href = getAttr(attr, 'HREF');
+        if (href) {
+          const iconData = getAttr(attr, 'ICON') || null;
+          const iconURI  = getAttr(attr, 'ICON_URI') || null;
+          const bm = makeBookmark(href, text || href, iconData, iconURI);
+          const add = parseInt(getAttr(attr, 'ADD_DATE')); if(add) bm.addDate = add;
+          current.push(bm);
+          lastNode = bm;
+        }
+        continue;
+      }
+    }
+    return roots;
+
+    function getAttr(attrString, name){
+      if(!attrString) return null;
+      const re = new RegExp(name + '\\s*=\\s*("([^"]*)"|\'([^\']*)\')', 'i');
+      const m = re.exec(attrString);
+      if(!m) return null;
+      return m[2] != null ? m[2] : m[3];
+    }
+    function hasBooleanAttr(attrString, name){
+      if(!attrString) return false;
+      const re = new RegExp('\\b' + name + '(\\s*=\\s*(".*?"|\'.*?\'))?\\b', 'i');
+      return re.test(attrString);
+    }
+    function decodeEntities(s){
+      const el = document.createElement('textarea');
+      el.innerHTML = s;
+      return el.value;
+    }
+  }
+
+  function countAll(arr){
+    let folders=0, bookmarks=0;
+    (function walk(items){
+      for(const it of items){
+        if(it.type==='folder'){ folders++; walk(it.children||[]); }
+        else if(it.type==='bookmark'){ bookmarks++; }
+      }
+    })(arr);
+    return {folders, bookmarks};
+  }
+
+  function persist(showToast){
+    localStorage.setItem('bookmarkBuilderState', JSON.stringify(state));
+    if(showToast) toast('✓ Saved');
+  }
+  function restore(showToast){
+    const raw = localStorage.getItem('bookmarkBuilderState');
+    if(!raw) { 
+      if(state.roots[0]) state.expanded[state.roots[0].id] = true;
+      toast('No saved data'); 
+      return; 
+    }
+    try{ 
+      state = JSON.parse(raw); 
+      renderTree(); 
+      updateSelectedInfo(); 
+      updateFolderSummary(); 
+      if(showToast) toast('✓ Loaded'); 
+    } catch { toast('Could not load saved data'); }
+  }
+
+  function toast(msg){
+    const t = document.createElement('div');
+    t.textContent = msg; 
+    t.className = 'toast';
+    document.body.appendChild(t); 
+    setTimeout(()=> t.remove(), 2200);
+  }
+
+  renderTree(); 
+  updateSelectedInfo(); 
+  updateFolderSummary();
+  restore(false);
+  if(!state.selected && state.roots[0]) { 
+    state.expanded[state.roots[0].id] = true;
+    selectFolder([0]); 
+  }
+  </script>
+</body>
+</html>
